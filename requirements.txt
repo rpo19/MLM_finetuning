@@ -1,5 +1,5 @@
 torch==2.0.0
-transformers==4.27.4
+transformers[sentencepiece]==4.27.4
 ipykernel==6.22.0
 matplotlib==3.7.1
 numpy==1.24.2

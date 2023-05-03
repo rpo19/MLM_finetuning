@@ -7,6 +7,7 @@ import random
 import numpy as np
 from tqdm import tqdm
 import gzip
+import copy
 
 # TODO: check if it is possible avoiding double conversions between list of dicts and dict of lists (see __explode_chunks())
 class DatasetMLM:
@@ -53,8 +54,9 @@ class DatasetMLM:
           # chunks.append(chunk)
       
       # mask random tokens
-      if chunks: 
-        chunks = self.data_collator(self.__explode_chunks(chunks)) 
+      if chunks:
+        exploded = self.__explode_chunks(chunks)
+        chunks = self.data_collator(exploded) 
       yield chunks
   
   def __explode_chunks(self, chunks):
@@ -130,13 +132,11 @@ class DatasetMLM:
 
   def __chunk_text(self, tokenized_doc):
     # create chunk each output of the tokenizer
+
     chunks = {
       k: [v[i : i + self.chunk_size] for i in range(0, len(tokenized_doc['input_ids']), self.chunk_size)]
       for k, v in tokenized_doc.items()
     }
-    
-    # copy labels to keep track of unmasked chunk
-    chunks['labels'] = chunks['input_ids'].copy()
 
     # handle last chunk
     if self.drop_last:
@@ -146,7 +146,13 @@ class DatasetMLM:
       last_chunk_length = len(chunks['input_ids'][-1])
       chunks['input_ids'][-1].extend([0] * (self.chunk_size - last_chunk_length))
       chunks['attention_mask'][-1].extend([0] * (self.chunk_size - last_chunk_length))
-      chunks['token_type_ids'][-1].extend([0] * (self.chunk_size - last_chunk_length))
+      if 'token_type_ids' in chunks:
+        chunks['token_type_ids'][-1].extend([0] * (self.chunk_size - last_chunk_length))
+      # if 'labels' in chunks:
+      #   chunks['labels'][-1].extend([0] * (self.chunk_size - last_chunk_length))
+
+    # copy labels to keep track of unmasked chunk
+    chunks['labels'] = copy.deepcopy(chunks['input_ids'])
 
     return chunks
 
